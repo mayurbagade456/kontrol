@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (rules, CLI, API smoke)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.node-version
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Validate rules.json
+        run: npm run check
+
+      - name: CLI smoke test (expected scores)
+        run: |
+          set -euo pipefail
+          node cli.js ../examples/hardened.Dockerfile --format json -q --fail-on low --min-score 100
+          node cli.js ../examples/insecure.Dockerfile --format json > insecure.json || true
+          node -e '
+            const r = require("./insecure.json");
+            const ids = r.findings.map(f => f.id).sort().join(",");
+            const expected = "SEC-001,SEC-002,SEC-003,SEC-004,SEC-005,SEC-007";
+            if (r.score !== 10 || r.grade !== "F" || ids !== expected) {
+              console.error("Unexpected result", { score: r.score, grade: r.grade, ids });
+              process.exit(1);
+            }
+            console.log("insecure example OK:", r.score, r.grade, ids);
+          '
+          node cli.js ../examples/insecure.Dockerfile --format sarif -q --output out.sarif
+          node -e 'const s=JSON.parse(require("fs").readFileSync("out.sarif","utf8")); if (s.version!=="2.1.0"||s.runs[0].results.length!==6) process.exit(1); console.log("sarif OK")'
+
+      - name: API smoke test
+        run: |
+          set -euo pipefail
+          PORT=4100 node server.js & echo $! > server.pid
+          for i in $(seq 1 20); do curl -fsS localhost:4100/api/health >/dev/null && break || sleep 0.5; done
+          curl -fsS localhost:4100/api/health | grep -q '"rulesLoadedCount":7'
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:4100/api/scan -H 'Content-Type: text/plain' --data-binary @../examples/insecure.Dockerfile)
+          [ "$code" = "200" ]
+          score=$(curl -sS -D - -o /dev/null -X POST localhost:4100/api/scan -H 'Content-Type: text/plain' --data-binary @../examples/hardened.Dockerfile | awk 'tolower($1)=="x-kontrol-score:"{print $2}' | tr -d '\r')
+          [ "$score" = "100" ]
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:4100/api/scan -H 'Content-Type: application/json' --data '{"content":"  "}')
+          [ "$code" = "400" ]
+          kill "$(cat server.pid)"
+          echo "api OK"
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Package dry-run
+        run: npm pack --dry-run
+
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
