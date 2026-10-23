@@ -1,0 +1,93 @@
+name: 'KONTROL Dockerfile Audit'
+description: 'Audit Dockerfiles for security misconfigurations. Produces a score, grade, findings and a report (Markdown, JSON or SARIF).'
+author: 'Mayur Bagade'
+
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  path:
+    description: 'Dockerfile path(s) to audit, space-separated. Globs are expanded by the shell.'
+    required: false
+    default: 'Dockerfile'
+  format:
+    description: 'Report format written to `output`: md, json, sarif or text.'
+    required: false
+    default: 'md'
+  output:
+    description: 'File to write the report to.'
+    required: false
+    default: 'kontrol-report.md'
+  fail-on:
+    description: 'Fail the step if any finding is at or above this severity: high, medium, low or none.'
+    required: false
+    default: 'none'
+  min-score:
+    description: 'Fail the step if the score is below this value (0-100). Leave empty to disable.'
+    required: false
+    default: ''
+  summary:
+    description: 'Append a Markdown report to the GitHub job summary.'
+    required: false
+    default: 'true'
+
+outputs:
+  score:
+    description: 'Security score (0-100) of the first audited file.'
+    value: ${{ steps.audit.outputs.score }}
+  grade:
+    description: 'Letter grade (A-F) of the first audited file.'
+    value: ${{ steps.audit.outputs.grade }}
+  findings:
+    description: 'Number of findings in the first audited file.'
+    value: ${{ steps.audit.outputs.findings }}
+  badge-markdown:
+    description: 'Shields.io badge markdown for the first audited file.'
+    value: ${{ steps.audit.outputs.badge-markdown }}
+  report:
+    description: 'Path of the written report.'
+    value: ${{ inputs.output }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run KONTROL
+      id: audit
+      shell: bash
+      env:
+        KONTROL_CLI: ${{ github.action_path }}/backend/cli.js
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_MIN_SCORE: ${{ inputs.min-score }}
+        INPUT_SUMMARY: ${{ inputs.summary }}
+      run: |
+        set -uo pipefail
+
+        # Machine-readable pass to capture outputs (no policy gating here)
+        node "$KONTROL_CLI" $INPUT_PATH --format json --no-color > kontrol-result.json
+        node -e '
+          const fs = require("fs");
+          const data = JSON.parse(fs.readFileSync("kontrol-result.json", "utf8"));
+          const first = Array.isArray(data) ? data[0] : data;
+          const out = [
+            `score=${first.score}`,
+            `grade=${first.grade}`,
+            `findings=${first.findingsCount}`,
+            `badge-markdown=${first.badge.markdown}`,
+          ].join("\n") + "\n";
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, out);
+        '
+
+        if [ "$INPUT_SUMMARY" = "true" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          node "$KONTROL_CLI" $INPUT_PATH --format md --no-color >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        # Report + policy pass; this is the step's exit status
+        ARGS=(--format "$INPUT_FORMAT" --output "$INPUT_OUTPUT" --fail-on "$INPUT_FAIL_ON" --no-color)
+        if [ -n "$INPUT_MIN_SCORE" ]; then
+          ARGS+=(--min-score "$INPUT_MIN_SCORE")
+        fi
+        node "$KONTROL_CLI" $INPUT_PATH "${ARGS[@]}"

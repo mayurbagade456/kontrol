@@ -1,0 +1,41 @@
+{
+  "name": "kontrol-backend",
+  "version": "1.0.0",
+  "description": "KONTROL API - rule-driven container security and configuration audit engine",
+  "main": "server.js",
+  "bin": {
+    "kontrol": "./cli.js"
+  },
+  "files": [
+    "server.js",
+    "cli.js",
+    "lib/",
+    "rules.json"
+  ],
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon --watch server.js --watch lib --watch rules.json server.js",
+    "scan": "node cli.js",
+    "check": "node -e \"require('./lib/engine').loadRules(require('path').join(__dirname, 'rules.json')); console.log('rules.json OK')\""
+  },
+  "keywords": [
+    "docker",
+    "dockerfile",
+    "security",
+    "audit",
+    "devsecops",
+    "express"
+  ],
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
