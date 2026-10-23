@@ -10,28 +10,52 @@ permissions:
   security-events: write
 
 jobs:
-  audit:
+  # Gate: the hardened example must stay clean. Fails the build on regressions.
+  audit-hardened:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Audit Dockerfiles
+      - name: Audit hardened Dockerfile
         id: kontrol
         # External repositories: uses: mayurbagade456/kontrol@main
         uses: ./
         with:
-          path: Dockerfile
+          path: examples/hardened.Dockerfile
           format: sarif
           output: kontrol.sarif
-          fail-on: high
-          min-score: 70
+          fail-on: low
+          min-score: 90
 
       - name: Upload SARIF to code scanning
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('kontrol.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: kontrol.sarif
+          category: kontrol
 
       - name: Print result
         if: always()
-        run: echo "Score ${{ steps.kontrol.outputs.score }} (grade ${{ steps.kontrol.outputs.grade }})"
+        run: echo "Score ${{ steps.kontrol.outputs.score }} (grade ${{ steps.kontrol.outputs.grade }}), ${{ steps.kontrol.outputs.findings }} findings"
+
+  # Demo: show what a failing Dockerfile looks like without gating the build.
+  report-insecure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Audit insecure example (report only)
+        id: kontrol
+        uses: ./
+        with:
+          path: examples/insecure.Dockerfile
+          format: md
+          output: kontrol-insecure-report.md
+          fail-on: none
+
+      - name: Upload Markdown report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kontrol-insecure-report
+          path: kontrol-insecure-report.md

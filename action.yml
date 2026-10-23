@@ -64,7 +64,14 @@ runs:
         INPUT_MIN_SCORE: ${{ inputs.min-score }}
         INPUT_SUMMARY: ${{ inputs.summary }}
       run: |
-        set -uo pipefail
+        set -euo pipefail
+
+        for f in $INPUT_PATH; do
+          if [ ! -f "$f" ]; then
+            echo "::error::KONTROL: Dockerfile not found at '$f' (cwd: $(pwd)). Check the 'path' input."
+            exit 3
+          fi
+        done
 
         # Machine-readable pass to capture outputs (no policy gating here)
         node "$KONTROL_CLI" $INPUT_PATH --format json --no-color > kontrol-result.json
@@ -90,4 +97,11 @@ runs:
         if [ -n "$INPUT_MIN_SCORE" ]; then
           ARGS+=(--min-score "$INPUT_MIN_SCORE")
         fi
+        set +e
         node "$KONTROL_CLI" $INPUT_PATH "${ARGS[@]}"
+        STATUS=$?
+        set -e
+        if [ "$STATUS" -eq 1 ]; then
+          echo "::error::KONTROL policy failed (fail-on=$INPUT_FAIL_ON, min-score=${INPUT_MIN_SCORE:-none}). See the report at $INPUT_OUTPUT."
+        fi
+        exit "$STATUS"

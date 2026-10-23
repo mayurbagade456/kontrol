@@ -352,8 +352,8 @@ Try it against the bundled examples: [examples/insecure.Dockerfile](examples/ins
     fail-on: high
     min-score: 70
 
-- uses: github/codeql-action/upload-sarif@v3
-  if: always()
+- uses: github/codeql-action/upload-sarif@v4
+  if: always() && hashFiles('kontrol.sarif') != ''
   with:
     sarif_file: kontrol.sarif
 
