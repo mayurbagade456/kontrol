@@ -48,7 +48,7 @@ KONTROL is a lightweight, rule-driven static analyzer for container definitions.
 | Surface | Best for | Output |
 | --- | --- | --- |
 | **Dashboard** (React) | Interactive review while editing a Dockerfile | Score card, findings with fixes, README badge |
-| **CLI** (`kontrol`) | CI gates, pre-commit hooks, local terminals | `text`, `json`, `md`, `sarif` + exit codes |
+| **CLI** (`npx kontrol-audit`) | CI gates, pre-commit hooks, local terminals | `text`, `json`, `md`, `sarif` + exit codes |
 | **HTTP API** (Express) | Any pipeline or tool that can `curl` | JSON, Markdown or SARIF, negotiated per request |
 
 Every audit returns:
@@ -214,6 +214,12 @@ kontrol/
 ### Quick start (CLI only, no install)
 
 ```bash
+npx kontrol-audit path/to/Dockerfile
+```
+
+Or from a clone, using the bundled examples:
+
+```bash
 git clone https://github.com/mayurbagade456/kontrol.git
 cd kontrol
 node backend/cli.js examples/insecure.Dockerfile      # score 10 / F, 6 findings
@@ -286,15 +292,18 @@ The dashboard is only one front door. The same engine ships as a dependency-free
 
 ### CLI
 
-No install step is needed beyond Node 18+ - the CLI only uses built-in modules.
+Published on npm as [`kontrol-audit`](https://www.npmjs.com/package/kontrol-audit) (bin name `kontrol`). It has no third-party dependencies - Node 18+ is all you need.
 
 ```bash
-# From a clone
-node backend/cli.js Dockerfile
+# Run without installing
+npx kontrol-audit Dockerfile
 
-# Or link it once and use it anywhere
-cd backend && npm link
+# Or install once
+npm i -g kontrol-audit
 kontrol Dockerfile
+
+# Or straight from a clone of this repo
+node backend/cli.js Dockerfile
 ```
 
 ```
@@ -389,9 +398,7 @@ GitLab CI example:
 kontrol:
   image: node:20-alpine
   script:
-    - apk add --no-cache git
-    - git clone --depth 1 https://github.com/mayurbagade456/kontrol.git /opt/kontrol
-    - node /opt/kontrol/backend/cli.js Dockerfile --format md --output kontrol-report.md --fail-on high
+    - npx kontrol-audit Dockerfile --format md --output kontrol-report.md --fail-on high
   artifacts:
     when: always
     paths: [kontrol-report.md]
