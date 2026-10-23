@@ -1,7 +1,7 @@
 {
-  "name": "kontrol-backend",
+  "name": "kontrol-audit",
   "version": "1.0.0",
-  "description": "KONTROL API - rule-driven container security and configuration audit engine",
+  "description": "KONTROL - Dockerfile security & configuration audit. CLI with JSON/Markdown/SARIF output and policy gates, plus an Express API.",
   "main": "server.js",
   "bin": {
     "kontrol": "./cli.js"
@@ -10,10 +10,23 @@
     "server.js",
     "cli.js",
     "lib/",
-    "rules.json"
+    "rules.json",
+    "README.md"
   ],
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
+  "author": "Mayur Bagade",
+  "homepage": "https://github.com/mayurbagade456/kontrol#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mayurbagade456/kontrol.git",
+    "directory": "backend"
+  },
+  "bugs": {
+    "url": "https://github.com/mayurbagade456/kontrol/issues"
+  },
   "engines": {
     "node": ">=18.0.0 <25"
   },
@@ -28,7 +41,10 @@
     "dockerfile",
     "security",
     "audit",
+    "linter",
     "devsecops",
+    "sarif",
+    "cli",
     "express"
   ],
   "dependencies": {
