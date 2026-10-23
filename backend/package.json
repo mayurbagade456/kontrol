@@ -4,7 +4,7 @@
   "description": "KONTROL - Dockerfile security & configuration audit. CLI with JSON/Markdown/SARIF output and policy gates, plus an Express API.",
   "main": "server.js",
   "bin": {
-    "kontrol": "./cli.js"
+    "kontrol": "cli.js"
   },
   "files": [
     "server.js",
