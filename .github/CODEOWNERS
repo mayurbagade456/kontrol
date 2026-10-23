@@ -1,0 +1,8 @@
+# Default owner for everything; required reviewer on every pull request.
+*                         @mayurbagade456
+
+# Security-sensitive paths: engine, rules, CI and the public action.
+/backend/lib/             @mayurbagade456
+/backend/rules.json       @mayurbagade456
+/.github/                 @mayurbagade456
+/action.yml               @mayurbagade456
